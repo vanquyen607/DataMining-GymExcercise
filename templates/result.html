@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kết quả</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: url('{{ url_for("static", filename="gym-background.jpg") }}') no-repeat center center fixed;
+            background-size: cover;
+            font-family: 'Poppins', sans-serif;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: -1;
+        }
+        .container {
+            max-width: 900px;
+            margin-top: 50px;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(40, 167, 69, 0.2);
+        }
+        h1 {
+            color: #28a745;
+            text-align: center;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .result {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .result.beginner { color: #007bff; }
+        .result.intermediate { color: #f39c12; }
+        .result.advanced { color: #e63946; }
+        .card {
+            margin-bottom: 20px;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+        .card-header {
+            background: linear-gradient(90deg, #28a745, #34c759);
+            color: white;
+            font-weight: bold;
+            background-size: 200% 100%;
+            transition: background-position 0.5s ease;
+        }
+        .card:hover .card-header {
+            background-position: 100% 0;
+        }
+        .card-header i {
+            margin-right: 8px;
+        }
+        .card-body {
+            display: flex;
+            align-items: flex-start;
+        }
+        .card-body img {
+            width: 150px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 10px;
+            flex-shrink: 0;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+            margin: 0px 20px 9px 0px;
+        }
+        .card-body img:hover {
+            transform: scale(1.05);
+        }
+        .card-body p {
+            flex: 1;
+            line-height: 2;
+            margin-bottom: 10px;
+            overflow: hidden;
+            color: #333;
+            font-weight: 500;
+            white-space: normal;
+            word-break: break-word;
+        }
+        .card-body p:hover {
+            color: #28a745;
+            transition: color 0.3s ease;
+        }
+        .btn-back {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            background-color: #28a745;
+            border: none;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+        .btn-back:hover {
+            background-color: #218838;
+            transform: scale(1.05);
+        }
+        .history-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .card-body ul {
+            margin: 0;
+            padding-left: 40px;
+            padding-top: 10px;
+            list-style-type: disc;
+        }
+        .card-body ul li {
+            margin-bottom: 12px;
+            opacity: 0;
+            animation: fadeIn 0.5s ease forwards;
+            animation-delay: calc(0.1s * var(--i));
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .highlight {
+            color: #e63946;
+            font-weight: bold;
+        }
+        #back-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: none;
+            z-index: 1000;
+            background-color: #28a745;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 50%;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+        #back-to-top:hover {
+            background-color: #218838;
+            transform: scale(1.1);
+        }
+        .table .higher { color: #28a745; font-weight: bold; }
+        .table .lower { color: #dc3545; font-weight: bold; }
+        @media (max-width: 768px) {
+            .card-body img {
+                width: 120px;
+                height: 160px;
+            }
+        }
+        @media (max-width: 576px) {
+            .card-body {
+                flex-direction: column;
+                align-items: center;
+            }
+            .card-body img {
+                margin-right: 0;
+                margin-bottom: 15px;
+            }
+            .card-body p {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Kết quả phân loại</h1>
+        <p class="result {{ result.lower() }}">Mức độ kinh nghiệm: {{ result }}</p>
+        
+        <div class="card">
+            <div class="card-header"><i class="fas fa-dumbbell"></i> Đề xuất tập luyện</div>
+            <div class="card-body">
+                <img src="{{ url_for('static', filename='running.jpg') }}" alt="Exercise" loading="lazy">
+                <p>
+                    {% if "HIIT" in exercise %}
+                        {% if "squat tạ 20kg" in exercise %}
+                            HIIT 20 phút + squat tạ 20kg (3 hiệp, mỗi hiệp 10 lần).
+                            <ul>
+                                <li style="--i: 1">Khởi động kỹ với tạ nhẹ 5-10 phút.</li>
+                                <li style="--i: 2">Nghỉ 2-3 phút giữa các hiệp để phục hồi cơ bắp.</li>
+                                <li style="--i: 3">Đảm bảo tư thế đúng khi squat để tránh chấn thương.</li>
+                            </ul>
+                        {% else %}
+                            HIIT nhẹ 10 phút (chạy tại chỗ 1 phút, nghỉ 30 giây).
+                            <ul>
+                                <li style="--i: 1">Làm ấm cơ thể 5 phút trước khi bắt đầu.</li>
+                                <li style="--i: 2">Tăng dần thời gian nếu cảm thấy thoải mái.</li>
+                                <li style="--i: 3">Uống nước sau mỗi chu kỳ.</li>
+                            </ul>
+                        {% endif %}
+                    {% elif "Chạy bộ" in exercise %}
+                        {% if "10km/h" in exercise %}
+                            Chạy bộ 40 phút với tốc độ 10km/h.
+                            <ul>
+                                <li style="--i: 1">Khởi động kỹ với tạ nhẹ 5-10 phút.</li>
+                                <li style="--i: 2">Nghỉ 2-3 phút giữa các hiệp để phục hồi cơ bắp.</li>
+                                <li style="--i: 3">Kết hợp giãn cơ sau tập để giảm đau nhức.</li>
+                            </ul>
+                        {% else %}
+                            Chạy bộ 30 phút + tạ 5kg (3 hiệp, mỗi hiệp 12 lần).
+                            <ul>
+                                <li style="--i: 1">Khởi động 10 phút bằng giãn cơ.</li>
+                                <li style="--i: 2">Nghỉ 1 phút giữa các hiệp.</li>
+                                <li style="--i: 3">Kết hợp giãn cơ sau tập để giảm đau nhức.</li>
+                            </ul>
+                        {% endif %}
+                    {% elif "Nhảy dây" in exercise %}
+                        Nhảy dây 20 phút + chống đẩy (3 hiệp, mỗi hiệp 15 lần).
+                        <ul>
+                            <li style="--i: 1">Khởi động 5 phút bằng cách xoay khớp và đi bộ nhẹ.</li>
+                            <li style="--i: 2">Nghỉ 30 giây giữa các hiệp để tránh mệt mỏi.</li>
+                            <li style="--i: 3">Uống nước sau khi tập để bù nước.</li>
+                        </ul>
+                    {% elif "Đi bộ" in exercise %}
+                        Đi bộ nhanh 20 phút.
+                        <ul>
+                            <li style="--i: 1">Khởi động bằng cách xoay khớp 3-5 phút.</li>
+                            <li style="--i: 2">Duy trì tốc độ vừa phải, không quá nhanh.</li>
+                            <li style="--i: 3">Uống nước sau khi kết thúc để bù nước.</li>
+                        </ul>
+                    {% elif "Đạp xe" in exercise %}
+                        Đạp xe nhẹ 25 phút.
+                        <ul>
+                            <li style="--i: 1">Khởi động bằng cách xoay khớp 3-5 phút.</li>
+                            <li style="--i: 2">Đạp ở tốc độ ổn định, không quá nhanh.</li>
+                            <li style="--i: 3">Nghỉ ngơi và uống nước sau khi hoàn thành.</li>
+                        </ul>
+                    {% elif "Plank" in exercise %}
+                        Plank 3 hiệp, mỗi hiệp 20 giây.
+                        <ul>
+                            <li style="--i: 1">Giữ lưng thẳng, không cong lưng khi plank.</li>
+                            <li style="--i: 2">Nghỉ 30 giây giữa các hiệp.</li>
+                            <li style="--i: 3">Thở đều trong suốt bài tập.</li>
+                        </ul>
+                    {% elif "Deadlift" in exercise or "Bench press" in exercise %}
+                        Deadlift và Bench press (4 hiệp, mỗi hiệp 8 lần).
+                        <ul>
+                            <li style="--i: 1">Khởi động kỹ với tạ nhẹ trước khi nâng tạ nặng.</li>
+                            <li style="--i: 2">Nghỉ 2-3 phút giữa các hiệp để phục hồi cơ bắp.</li>
+                            <li style="--i: 3">Đảm bảo tư thế đúng để tránh chấn thương.</li>
+                        </ul>
+                    {% else %}
+                        {{ exercise }} (Kiểm tra lại dữ liệu tập luyện)
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header"><i class="fas fa-utensils"></i> Đề xuất dinh dưỡng</div>
+            <div class="card-body">
+                <img src="{{ url_for('static', filename='nutrition.jpg') }}" alt="Nutrition" loading="lazy">
+                <p>
+                    {% if "Gà + cơm gạo lứt" in nutrition %}
+                        Gà (100g ức gà áp chảo không da) + cơm gạo lứt (1 bát, khoảng 150g).
+                        <ul>
+                            <li style="--i: 1">Nêm gia vị nhẹ (muối, tiêu, ít dầu ô liu).</li>
+                            <li style="--i: 2">Kết hợp thêm 1 đĩa salad rau xanh để bổ sung vitamin.</li>
+                            <li style="--i: 3">Ăn sau buổi tập 30 phút để phục hồi cơ bắp.</li>
+                        </ul>
+                    {% elif "Cá hồi" in nutrition %}
+                        Cá hồi (120g nướng) + khoai lang (1 củ nhỏ, khoảng 200g).
+                        <ul>
+                            <li style="--i: 1">Ướp cá với tỏi, gừng và nước cốt chanh.</li>
+                            <li style="--i: 2">Kết hợp rau luộc để cân bằng dinh dưỡng.</li>
+                            <li style="--i: 3">Ăn trước tập 1-2 giờ để có năng lượng.</li>
+                        </ul>
+                    {% elif "Yến mạch" in nutrition %}
+                        Yến mạch (50g) + whey protein (1 muỗng) + quả óc chó (10g).
+                        <ul>
+                            <li style="--i: 1">Pha với nước ấm hoặc sữa không đường.</li>
+                            <li style="--i: 2">Thêm một ít trái cây (chuối, dâu) để tăng hương vị.</li>
+                            <li style="--i: 3">Ăn sáng hoặc sau tập để phục hồi nhanh.</li>
+                        </ul>
+                    {% elif "Chuối" in nutrition %}
+                        Chuối (1 quả) + trứng luộc (2 quả).
+                        <ul>
+                            <li style="--i: 1">Chuẩn bị 2 quả trứng luộc chín, bỏ vỏ.</li>
+                            <li style="--i: 2">Ăn kèm 1 quả chuối để bổ sung năng lượng.</li>
+                            <li style="--i: 3">Dùng làm bữa sáng hoặc ăn nhẹ trước tập.</li>
+                        </ul>
+                    {% elif "Bánh mì" in nutrition %}
+                        Bánh mì (1 ổ nhỏ) + sữa (200ml, không đường).
+                        <ul>
+                            <li style="--i: 1">Chọn bánh mì nguyên cám để tốt hơn.</li>
+                            <li style="--i: 2">Uống sữa không đường để giảm lượng đường.</li>
+                            <li style="--i: 3">Dùng làm bữa sáng hoặc sau tập.</li>
+                        </ul>
+                    {% elif "Salad + gà luộc" in nutrition %}
+                        Salad (1 đĩa rau xanh) + gà luộc (100g ức gà).
+                        <ul>
+                            <li style="--i: 1">Luộc gà với ít muối, xé nhỏ trộn salad.</li>
+                            <li style="--i: 2">Thêm dầu ô liu và giấm làm nước sốt.</li>
+                            <li style="--i: 3">Ăn vào bữa trưa hoặc tối.</li>
+                        </ul>
+                    {% elif "Trứng cuộn phô mai + đậu que luộc" in nutrition %}
+                        Trứng (3 quả trứng gà) + 20g phô mai + 100g đậu que.
+                        <ul>
+                            <li style="--i: 1">Đánh đều trứng với chút muối, tiêu.</li>
+                            <li style="--i: 2">Đổ trứng vào chảo chống dính, rắc phô mai vào giữa.</li>
+                            <li style="--i: 3">Hấp hoặc luộc đậu que, nêm ít muối.</li>
+                        </ul>
+                    {% elif "Thịt bò + quinoa" in nutrition %}
+                        150g thịt bò (cắt lát mỏng) + 100g quinoa (nấu chín).
+                        <ul>
+                            <li style="--i: 1">Xào thịt bò với dầu ô liu, tỏi và gia vị.</li>
+                            <li style="--i: 2">Thêm rau củ vào xào chung.</li>
+                            <li style="--i: 3">Trộn với quinoa đã nấu chín.</li>
+                        </ul>                    
+                    {% elif "Whey" in nutrition %}
+                        Whey protein (1 muỗng) + cá hồi (120g nướng).
+                        <ul>
+                            <li style="--i: 1">Pha 1 muỗng whey với 300ml nước hoặc sữa không đường.</li>
+                            <li style="--i: 2">Kết hợp thêm cá hồi hoặc thịt nạc để tăng protein.</li>
+                            <li style="--i: 3">Uống ngay sau tập để phục hồi cơ bắp.</li>
+                        </ul>
+                    {% else %}
+                        {{ nutrition }} (Kiểm tra lại dữ liệu dinh dưỡng)
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header"><i class="fas fa-bullseye"></i> Mục tiêu</div>
+            <div class="card-body">
+                <p>
+                    {% if "Đốt" in goal %}
+                        <span class="highlight">{{ goal }}</span>
+                        <ul>
+                            <li style="--i: 1">Tuần 1-2: Tăng lên 650 calo/ngày bằng cách thêm 15 phút cardio.</li>
+                            <li style="--i: 2">Tuần 3-4: Đạt 700 calo với bài tập HIIT 2 lần/tuần.</li>
+                            <li style="--i: 3">Tuần 5-12: Duy trì 720 calo, kết hợp tạ để tăng cơ.</li>
+                        </ul>
+                    {% elif "Tăng" in goal %}
+                        <span class="highlight">{{ goal }}</span>
+                        <ul>
+                            <li style="--i: 1">Bắt đầu tăng thêm 1 ngày/tuần.</li>
+                            <li style="--i: 2">Tập nhẹ nhàng vào ngày mới để cơ thể thích nghi.</li>
+                            <li style="--i: 3">Theo dõi nhịp tim để tránh quá tải.</li>
+                        </ul>
+                    {% elif "Giảm" in goal %}
+                        <span class="highlight">{{ goal }}</span>
+                        <ul>
+                            <li style="--i: 1">Giảm 1% mỡ mỗi tháng bằng cách kết hợp cardio và ăn kiêng.</li>
+                            <li style="--i: 2">Đo lại tỷ lệ mỡ mỗi 2 tuần để điều chỉnh.</li>
+                            <li style="--i: 3">Tăng protein trong khẩu phần ăn.</li>
+                        </ul>
+                    {% else %}
+                        {{ goal }} (Kiểm tra lại dữ liệu mục tiêu)
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><i class="fas fa-lightbulb"></i> Mẹo nhỏ</div>
+            <div class="card-body">
+                <p>
+                    {% if "Ngủ" in tip %}
+                        {{ tip }}
+                        <ul>
+                            <li style="--i: 1">Tránh ăn khuya ít nhất 2 giờ trước khi ngủ.</li>
+                            <li style="--i: 2">Tập trung vào giấc ngủ sâu bằng cách tắt đèn và hạn chế điện thoại.</li>
+                        </ul>
+                    {% elif "Hãy uống" in tip %}
+                        {{ tip }}
+                        <ul>
+                            <li style="--i: 1">Uống đều trong ngày, tránh uống quá nhiều cùng lúc.</li>
+                            <li style="--i: 2">Thêm lát chanh hoặc dưa leo để tăng hương vị.</li>
+                        </ul>
+                    {% elif "Kết hợp" in tip %}
+                        {{ tip }}
+                        <ul>
+                            <li style="--i: 1">Lập lịch tập cardio và tạ xen kẽ trong tuần.</li>
+                            <li style="--i: 2">Tham khảo huấn luyện viên để tối ưu hóa.</li>
+                        </ul>
+                    {% else %}
+                        {{ tip }} (Kiểm tra lại dữ liệu mẹo)
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><i class="fas fa-chart-bar"></i> So sánh với mức trung bình</div>
+            <div class="card-body">
+                <table class="table">
+                    <tr><th>Đặc trưng</th><th>Của bạn</th><th>{{ result }}</th></tr>
+                    <tr>
+                        <td>Calories Burned</td>
+                        <td class="{% if calories > avg_calories %}higher{% elif calories < avg_calories %}lower{% endif %}">{{ calories }}</td>
+                        <td>{{ avg_calories }}</td>
+                    </tr>
+                    <tr>
+                        <td>Fat Percentage</td>
+                        <td class="{% if fat > avg_fat %}higher{% elif fat < avg_fat %}lower{% endif %}">{{ fat }}%</td>
+                        <td>{{ avg_fat }}%</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><i class="fas fa-chart-line"></i> Xu hướng tỷ lệ mỡ cơ thể</div>
+            <div class="card-body">
+                <canvas id="fatChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><i class="fas fa-chart-line"></i> Xu hướng Calo tiêu thụ</div>
+            <div class="card-body">
+                <canvas id="caloriesChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><i class="fas fa-history"></i> Lịch sử 5 lần gần nhất</div>
+            <div class="card-body history-list">
+                <ul>
+                {% for pred in history %}
+                    <li style="--i: {{ loop.index }}">{{ pred.date.strftime('%Y-%m-%d %H:%M') }}: <span class="{{ pred.level.lower() }}">{{ pred.level }}</span> (Fat: {{ pred.fat }}%, Calories: {{ pred.calories }})</li>
+                {% endfor %}
+                </ul>
+                <a href="/history" class="btn btn-secondary btn-sm">Xem toàn bộ lịch sử</a>
+            </div>
+        </div>
+        
+        <a href="/" class="btn btn-primary btn-back">Quay lại</a>
+    </div>
+
+    <button id="back-to-top" class="btn btn-primary">
+        ↑ Top
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        alert("Dự đoán thành công! Kiểm tra kết quả bên dưới.");
+        
+        // Biểu đồ Xu hướng tỷ lệ mỡ cơ thể
+        const fatCtx = document.getElementById('fatChart').getContext('2d');
+        new Chart(fatCtx, {
+            type: 'line',
+            data: {
+                labels: [{% for pred in history %}'{{ pred.date.strftime('%Y-%m-%d %H:%M') }}',{% endfor %}],
+                datasets: [{
+                    label: 'Fat Percentage (%)',
+                    data: [{% for pred in history %}{{ pred.fat }},{% endfor %}],
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#28a745',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#28a745',
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: false }
+                },
+                plugins: {
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: '#28a745',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#218838',
+                        borderWidth: 1
+                    }
+                }
+            }
+        });
+
+        // Biểu đồ Xu hướng Calo tiêu thụ
+        const caloriesCtx = document.getElementById('caloriesChart').getContext('2d');
+        new Chart(caloriesCtx, {
+            type: 'line',
+            data: {
+                labels: [{% for pred in history %}'{{ pred.date.strftime('%Y-%m-%d %H:%M') }}',{% endfor %}],
+                datasets: [{
+                    label: 'Calories Burned (kcal)',
+                    data: [{% for pred in history %}{{ pred.calories }},{% endfor %}],
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#007bff',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#007bff',
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: false }
+                },
+                plugins: {
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: '#007bff',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#0056b3',
+                        borderWidth: 1
+                    }
+                }
+            }
+        });
+
+        window.onscroll = function() {
+            let backToTopButton = document.getElementById('back-to-top');
+            if (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) {
+                backToTopButton.style.display = 'block';
+            } else {
+                backToTopButton.style.display = 'none';
+            }
+        };
+        document.getElementById('back-to-top').onclick = function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+    </script>
+</body>
+</html>
